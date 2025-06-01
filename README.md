@@ -111,9 +111,5 @@ Feel free to fork, modify, and test the signals. Pull requests and suggestions a
 
 ## 📜 License
 
-MIT License © 2025 YourName
+MIT License © 2025 Adam Vibe Code
 
-```
-
-Just copy this entire block as-is to your `README.md`! Let me know if you want me to generate a `requirements.txt` or anything else.
-```
