@@ -1,20 +1,25 @@
+#positions.py
 import time
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Position:
     def __init__(self, symbol, direction, entry_price, targets, stop_loss):
+        # existing attributes...
+        self.confirmed = False  # New: track if user confirmed position
         self.symbol = symbol
         self.direction = direction  # "LONG" or "SHORT"
         self.entry_price = entry_price
         self.targets = targets  # list of price targets (floats)
         self.stop_loss = stop_loss
-        self.open_time = datetime.utcnow()
+        self.open_time = datetime.now(timezone.utc)  # Timezone-aware UTC datetime
         self.last_reported_target = None
         self.closed = False
         self.close_price = None
         self.close_time = None
         self.message = None  # Discord message object (for editing)
+        self.last_reported_gain = 0.0  # no __init__
+
 
     def check_targets(self, current_price):
         """
@@ -47,7 +52,7 @@ class Position:
     def close(self, price):
         self.closed = True
         self.close_price = price
-        self.close_time = datetime.utcnow()
+        self.close_time = datetime.now(timezone.utc)  # Timezone-aware UTC datetime
 
 class PositionManager:
     def __init__(self):

@@ -129,15 +129,9 @@ def calculate_signal_confidence(df_short, df_long, df_higher):
     return confidence
 
 def generate_report(df_short, df_long, df_higher, symbol='N/A', detailed=False):
-    # Generates a human-readable summary of the technical analysis, including:
-    # - Overall confidence score
-    # - Direction of expected price movement (Bullish/Long or Bearish/Short)
-    # - Current price and key indicator values
-    # - Targets for profit-taking and stop loss levels
     confidence = calculate_signal_confidence(df_short, df_long, df_higher)
 
     if not detailed:
-        # Provide a quick summary signal strength:
         if confidence >= 70:
             return f"📉 **Strong Signal Detected** (Confidence: {confidence}%)"
         elif confidence >= 40:
@@ -154,19 +148,18 @@ def generate_report(df_short, df_long, df_higher, symbol='N/A', detailed=False):
     macd_signal = df_short['MACD_signal'].iloc[-1]
     crossover_down, crossover_up = check_ema_crossover(df_short)
 
-    # Determine trade direction based on reversal signals
+    # Determine direction
     if check_reversal(df_short):
-        direction = "SHORT"  # Expecting price drop; bearish position
-        stop_loss = high * 1.02  # Stop loss above recent high for risk control
-        target_1 = last_close * 0.98  # First profit target ~2% below entry
-        target_2 = last_close * 0.96  # Second profit target ~4% below entry
+        direction = "SHORT"
+        stop_loss = high * 1.02
+        target_1 = last_close * 0.98
+        target_2 = last_close * 0.96
     else:
-        direction = "LONG"  # Expecting price rise; bullish position
-        stop_loss = low * 0.98  # Stop loss below recent low
-        target_1 = last_close * 1.02  # First profit target ~2% above entry
-        target_2 = last_close * 1.04  # Second profit target ~4% above entry
+        direction = "LONG"
+        stop_loss = low * 0.98
+        target_1 = last_close * 1.02
+        target_2 = last_close * 1.04
 
-    # Format the detailed report (e.g., for Discord message)
     report = (
         "```ini\n"
         f"Symbol           = {df_short['symbol'].iloc[0] if 'symbol' in df_short.columns else 'N/A'}\n"
@@ -184,4 +177,33 @@ def generate_report(df_short, df_long, df_higher, symbol='N/A', detailed=False):
         f"Stop Loss        = {stop_loss:.4f}\n"
         "```"
     )
+
+    # 👇 AI Insight included if detailed=True
+    try:
+        prompt = generate_ai_analysis_prompt(symbol, confidence, direction, rsi, macd, macd_signal, crossover_up, crossover_down)
+        ai_analysis = generate_ai_summary(prompt)
+        report += f"\n💬 **Análise AI:**\n{ai_analysis}"
+    except Exception as e:
+        logger.warning(f"Erro ao gerar análise AI: {e}")
+
     return report
+
+
+
+from groq_ai import generate_ai_summary
+
+def generate_ai_analysis_prompt(symbol, confidence, direction, rsi, macd, macd_signal, crossover_up, crossover_down):
+    trend = "de alta" if direction == "LONG" else "de baixa"
+    crossover = "cruzamento de EMAs indicando alta" if crossover_up else (
+        "cruzamento de EMAs indicando baixa" if crossover_down else "sem cruzamento de EMAs"
+    )
+    prompt = (
+        f"Análise para o ativo {symbol}:\n"
+        f"- Direção provável: {trend}\n"
+        f"- Confiança do sinal: {confidence}%\n"
+        f"- RSI atual: {rsi:.2f}\n"
+        f"- MACD: {macd:.4f}, Sinal: {macd_signal:.4f}\n"
+        f"- Situação do EMA: {crossover}\n\n"
+        f"Explique de forma clara para um trader iniciante o que isso significa, com um tom motivador."
+    )
+    return prompt
