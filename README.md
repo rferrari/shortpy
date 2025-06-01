@@ -1,5 +1,3 @@
-Got it! Here’s the **entire README in a single markdown code block** for easy copy-paste without breaks:
-
 ````markdown
 # 📉 Crypto SHORT Signal Discord Bot
 
