@@ -62,7 +62,7 @@ class BotShort(discord.Client):
         analisados = set()
 
         min_cap = 200_000_000
-        max_cap = 350_000_000
+        max_cap = 300_000_000
 
         while True:
             try:
