@@ -1,3 +1,4 @@
+#main bot.py
 import discord
 import os
 import asyncio
@@ -9,7 +10,16 @@ from data import (
     get_recent_futures,
     get_klines
 )
-from analysis import calculate_ema, check_reversal, check_continuation
+from analysis import (
+    calculate_ema, 
+    check_reversal,
+    check_continuation, 
+    calculate_rsi, 
+    calculate_macd,
+    calculate_signal_confidence,
+    check_ema_crossover,
+    generate_report
+)
 
 # 🔧 Logging configurado (terminal + arquivo)
 logging.basicConfig(
@@ -17,7 +27,7 @@ logging.basicConfig(
     format='[%(asctime)s] [%(levelname)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
-        logging.FileHandler("bot.log", encoding='utf-8'),
+        # logging.FileHandler("bot.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -48,20 +58,14 @@ class BotShort(discord.Client):
         canal = await self.fetch_channel(CANAL_ID)
         analisados = set()
 
-        min_cap = 100_000_000  # 100 milhões
-        max_cap = 950_000_000  # 150 milhões
+        min_cap = 200_000_000
+        max_cap = 350_000_000
 
         while True:
             try:
-                # Pega moedas do CoinGecko com market cap entre min_cap e max_cap
                 moedas_gecko = obter_moedas_com_capitalizacao(min_cap, max_cap)
-                logging.debug(f"🔍 {len(moedas_gecko)} moedas filtradas por market cap no CoinGecko")
-
-                # Pega símbolos dos futuros perpétuos na Binance
                 symbols_binance = get_recent_futures(client_binance)
-                logging.debug(f"🔍 {len(symbols_binance)} símbolos de futuros na Binance")
 
-                # Filtra os símbolos disponíveis que estão nas duas listas
                 symbols_filtrados = []
                 for moeda in moedas_gecko:
                     sym = moeda['symbol'].upper()
@@ -69,41 +73,54 @@ class BotShort(discord.Client):
                     if sym_usdt in symbols_binance:
                         symbols_filtrados.append(sym_usdt)
 
-                logging.debug(f"🔍 {len(symbols_filtrados)} símbolos filtrados para análise")
-
                 for symbol in symbols_filtrados:
-                    logging.debug(f"⏭ Analisando: {symbol}")
                     if symbol in analisados:
-                        logging.debug(f"⏭ Já analisado: {symbol}")
                         continue
 
-                    df = get_klines(client_binance, symbol)
-                    df = calculate_ema(df)
+                    logging.info(f"🔍 Analisando símbolo em background: {symbol}")
+                    try:
+                        df_15m = get_klines(client_binance, symbol, interval='15m')
+                        df_1h = get_klines(client_binance, symbol, interval='1h')
+                        df_4h = get_klines(client_binance, symbol, interval='4h')
 
-                    if check_reversal(df) or check_continuation(df):
-                        logging.info(f"📉 Sinal de SHORT detectado: {symbol}")
-                        mensagem = await canal.send(
-                            f"📉 Sinal de SHORT detectado em `{symbol}`\nResponder com `ok` para confirmar entrada."
-                        )
+                        for df in (df_15m, df_1h, df_4h):
+                            df = calculate_ema(df, 9)
+                            df = calculate_ema(df, 21)
+                            df = calculate_rsi(df)
+                            df = calculate_macd(df)
 
-                        def check(msg):
-                            return msg.channel == canal and msg.content.lower() == "ok"
+                        # Recalculate explicitly (you can wrap this logic into a helper if needed)
+                        df_15m = calculate_macd(calculate_rsi(calculate_ema(calculate_ema(df_15m, 9), 21)))
+                        df_1h  = calculate_macd(calculate_rsi(calculate_ema(calculate_ema(df_1h, 9), 21)))
+                        df_4h  = calculate_macd(calculate_rsi(calculate_ema(calculate_ema(df_4h, 9), 21)))
 
-                        try:
-                            resposta = await self.wait_for("message", timeout=30.0, check=check)
-                            logging.info(f"✅ Ordem confirmada via Discord para {symbol}")
-                            await canal.send(f"✅ Ordem executada: SHORT em {symbol} por confirmação manual.")
-                        except asyncio.TimeoutError:
-                            logging.info(f"⌛ Nenhuma confirmação para {symbol}, pulando.")
-                            await canal.send(f"⏳ Ninguém respondeu. Continuando monitoramento de `{symbol}`.")
+                        confidence = calculate_signal_confidence(df_15m, df_1h, df_4h)
 
-                        analisados.add(symbol)
+                        crossover_down, crossover_up = check_ema_crossover(df_15m)
+                        reversal = check_reversal(df_15m)
+                        continuation = check_continuation(df_15m)
+
+                        # Only send alert if bearish (short) signal:
+                        if confidence >= 70 and (crossover_down or reversal) and not continuation:
+                            report = generate_report(df_15m, df_1h, df_4h, detailed=True)
+
+                            # Add the direction explicitly here
+                            report = report.replace("Direction = N/A", "Direction = Bearish 📉 (Short)")
+
+                            await canal.send(f"📉 *Alerta SHORT para `{symbol}`*\n{report}")
+                            analisados.add(symbol)
+                        else:
+                            logging.info(f"Sinal não bearish para {symbol}, ignorado.")
+
+                    except Exception as e:
+                        logging.warning(f"⚠️ Erro ao analisar {symbol} no monitoramento: {e}")
 
                 await asyncio.sleep(60)
 
             except Exception as e:
-                logging.error(f"❌ Erro no monitoramento: {e}")
+                logging.error(f"❌ Erro geral no monitoramento: {e}")
                 await asyncio.sleep(10)
+
 
 # 🚀 Executa o bot
 bot = BotShort(intents=intents)

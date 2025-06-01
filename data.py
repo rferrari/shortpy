@@ -1,3 +1,4 @@
+# data.py
 import requests
 from binance.client import Client
 import pandas as pd
@@ -17,7 +18,7 @@ def get_recent_futures(client):
     symbols = [s['symbol'] for s in info['symbols'] if s['contractType'] == 'PERPETUAL']
     logger.debug(f"Encontrados {len(symbols)} símbolos futuros.")
     return symbols
-
+    
 def get_klines(client, symbol, interval='15m', limit=100):
     logger.debug(f"Buscando candles para {symbol} (intervalo {interval}, limite {limit})...")
     klines = client.futures_klines(symbol=symbol, interval=interval, limit=limit)
@@ -33,8 +34,12 @@ def get_klines(client, symbol, interval='15m', limit=100):
     df['high'] = df['high'].astype(float)
     df['low'] = df['low'].astype(float)
 
+    # Add the symbol column here
+    df['symbol'] = symbol
+
     logger.debug(f"DataFrame montado para {symbol} com {df.shape[0]} linhas.")
     return df
+
 
 def obter_moedas_com_capitalizacao(min_cap, max_cap):
     logger.debug(f"Consultando moedas no CoinGecko com market cap entre {min_cap} e {max_cap} USD...")
