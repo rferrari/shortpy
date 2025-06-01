@@ -176,4 +176,12 @@ def generate_report(df_short, df_long, df_higher, symbol='N/A', detailed=False):
         f"RSI              = {rsi:.2f}\n"
         f"MACD             = {macd:.4f} (Signal: {macd_signal:.4f})\n"
         f"EMA Crossover    = {'Bullish 🔺' if crossover_up else ('Bearish 🔻' if crossover_down else 'None ➖')}\n\n"
-        f"Reversal Detected= {'Yes ✅' if check_reversal(df_short) else '
+        f"Reversal Detected= {'Yes ✅' if check_reversal(df_short) else 'No ❌'}\n"
+        f"Continuation     = {'Yes ✅' if check_continuation(df_short) else 'No ❌'}\n\n"
+        f"Confidence Score = {confidence}%\n\n"
+        f"Target 1         = {target_1:.4f}\n"
+        f"Target 2         = {target_2:.4f}\n"
+        f"Stop Loss        = {stop_loss:.4f}\n"
+        "```"
+    )
+    return report
