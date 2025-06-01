@@ -1,4 +1,3 @@
-````markdown
 # 📉 Crypto SHORT Signal Discord Bot
 
 This is a **Discord bot** that scans the crypto futures market on Binance for potential **SHORT trading signals**, based on **Fibonacci retracements**, **EMA**, and **price action patterns**. It filters assets by market capitalization using CoinGecko, performs analysis, and posts alerts to a Discord channel for manual confirmation.
